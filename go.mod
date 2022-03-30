@@ -32,7 +32,6 @@ require (
 	github.com/gophercloud/gophercloud v0.1.0
 	github.com/gorilla/mux v1.7.4 // indirect
 	github.com/hooklift/gowsdl v0.4.0
-	github.com/infobloxopen/infoblox-go-client v1.1.1
 	github.com/infobloxopen/infoblox-go-client/v2 v2.0.0
 	github.com/linki/instrumented_http v0.2.0
 	github.com/linode/linodego v0.19.0
