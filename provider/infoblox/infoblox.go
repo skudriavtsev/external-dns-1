@@ -290,15 +290,28 @@ func (p *ProviderConfig) Records(ctx context.Context) (endpoints []*endpoint.End
 			// example: 10.196.38.0/24 becomes 38.196.10.in-addr.arpa
 			arpaZone, err := transform.ReverseDomainName(zone.Fqdn)
 			if err == nil {
-				var resP []ibclient.RecordPTR
+				var resPtrStatic, resPtrDynamic []ibclient.RecordPTR
 				objP := ibclient.NewEmptyRecordPTR()
 				objP.Zone = arpaZone
 				objP.View = p.view
-				err = p.client.GetObject(objP, "", nil, &resP)
+				qp := ibclient.NewQueryParams(false, map[string]string{
+					"creator": "STATIC",
+				})
+				err = p.client.GetObject(objP, "", qp, &resPtrStatic)
 				if err != nil && !isNotFoundError(err) {
 					return nil, fmt.Errorf("could not fetch PTR records from zone '%s': %s", zone.Fqdn, err)
 				}
-				for _, res := range resP {
+				qp = ibclient.NewQueryParams(false, map[string]string{
+					"creator": "DYNAMIC",
+				})
+				err = p.client.GetObject(objP, "", qp, &resPtrDynamic)
+				if err != nil && !isNotFoundError(err) {
+					return nil, fmt.Errorf("could not fetch PTR records from zone '%s': %s", zone.Fqdn, err)
+				}
+				for _, res := range resPtrStatic {
+					endpoints = append(endpoints, endpoint.NewEndpoint(res.PtrdName, endpoint.RecordTypePTR, res.Ipv4Addr))
+				}
+				for _, res := range resPtrDynamic {
 					endpoints = append(endpoints, endpoint.NewEndpoint(res.PtrdName, endpoint.RecordTypePTR, res.Ipv4Addr))
 				}
 			}
@@ -384,7 +397,7 @@ func (p *ProviderConfig) Records(ctx context.Context) (endpoints []*endpoint.End
 			}
 		}
 	}
-	logrus.Debugf("fetched %d records from infoblox", len(endpoints))
+	logrus.Debugf("fetched %d records from NIOS", len(endpoints))
 	return endpoints, nil
 }
 
@@ -567,10 +580,22 @@ func (p *ProviderConfig) recordSet(ep *endpoint.Endpoint, getObject bool, target
 		obj.Ipv4Addr = ep.Targets[targetIndex]
 		obj.View = p.view
 		if getObject {
-			err = p.client.GetObject(obj, "", nil, &res)
+			var staticPtrs, dynamicPtrs []ibclient.RecordPTR
+			qp := ibclient.NewQueryParams(false, map[string]string{
+				"creator": "STATIC",
+			})
+			err = p.client.GetObject(obj, "", qp, &staticPtrs)
 			if err != nil && !isNotFoundError(err) {
 				return
 			}
+			qp = ibclient.NewQueryParams(false, map[string]string{
+				"creator": "DYNAMIC",
+			})
+			err = p.client.GetObject(obj, "", qp, &dynamicPtrs)
+			if err != nil && !isNotFoundError(err) {
+				return
+			}
+			res = append(staticPtrs, dynamicPtrs...)
 		}
 		recordSet = infobloxRecordSet{
 			obj: obj,

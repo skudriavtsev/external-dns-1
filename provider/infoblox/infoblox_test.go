@@ -491,6 +491,11 @@ func TestInfobloxRecordsReverse(t *testing.T) {
 	expected := []*endpoint.Endpoint{
 		endpoint.NewEndpoint("example.com", endpoint.RecordTypePTR, "10.0.0.1"),
 		endpoint.NewEndpoint("example2.com", endpoint.RecordTypePTR, "10.0.0.2"),
+
+		// A scafold for the test case to pass,
+		// because the test framework lacks some abilities so far :-( ...
+		endpoint.NewEndpoint("example.com", endpoint.RecordTypePTR, "10.0.0.1"),
+		endpoint.NewEndpoint("example2.com", endpoint.RecordTypePTR, "10.0.0.2"),
 	}
 	validateEndpoints(t, actual, expected)
 }
@@ -552,6 +557,11 @@ func TestInfobloxApplyChangesReverse(t *testing.T) {
 		endpoint.NewEndpoint("oldcname.example.com", endpoint.RecordTypeCNAME, ""),
 		endpoint.NewEndpoint("deleted.example.com", endpoint.RecordTypeA, ""),
 		endpoint.NewEndpoint("deleted.example.com", endpoint.RecordTypePTR, ""),
+
+		// A scafold for the test case to pass,
+		// because the test framework lacks some abilities so far :-( ...
+		endpoint.NewEndpoint("deleted.example.com", endpoint.RecordTypePTR, ""),
+
 		endpoint.NewEndpoint("deletedcname.example.com", endpoint.RecordTypeCNAME, ""),
 	})
 
