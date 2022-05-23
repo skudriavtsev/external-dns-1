@@ -23,6 +23,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -40,6 +41,12 @@ const (
 	// provider specific key to track if PTR record was already created or not for A records
 	providerSpecificInfobloxPtrRecord = "infoblox-ptr-record-exists"
 )
+
+var domainRegexp = regexp.MustCompile(`^(?i)[a-z0-9-]+(\.[a-z0-9-]+)+\.?$`)
+
+func isDomainValid(name string) bool {
+	return domainRegexp.MatchString(name)
+}
 
 func isNotFoundError(err error) bool {
 	_, ok := err.(*ibclient.NotFoundError)
@@ -61,7 +68,7 @@ type StartupConfig struct {
 	DryRun        bool
 	View          string
 	MaxResults    int
-	FQDNRexEx     string
+	FQDNRegEx     string
 	CreatePTR     bool
 	CacheDuration int
 }
@@ -147,9 +154,9 @@ func NewInfobloxProvider(ibStartupCfg StartupConfig) (*ProviderConfig, error) {
 		requestBuilder ibclient.HttpRequestBuilder
 		err            error
 	)
-	if ibStartupCfg.MaxResults != 0 || ibStartupCfg.FQDNRexEx != "" {
+	if ibStartupCfg.MaxResults != 0 || ibStartupCfg.FQDNRegEx != "" {
 		// use our own HttpRequestBuilder which sets _max_results parameter on GET requests
-		requestBuilder = NewExtendedRequestBuilder(ibStartupCfg.MaxResults, ibStartupCfg.FQDNRexEx)
+		requestBuilder = NewExtendedRequestBuilder(ibStartupCfg.MaxResults, ibStartupCfg.FQDNRegEx)
 	} else {
 		// use the default HttpRequestBuilder of the infoblox client
 		requestBuilder, err = ibclient.NewWapiRequestBuilder(hostCfg, authCfg)
@@ -186,7 +193,7 @@ func NewInfobloxProvider(ibStartupCfg StartupConfig) (*ProviderConfig, error) {
 		zoneIDFilter:  ibStartupCfg.ZoneIDFilter,
 		dryRun:        ibStartupCfg.DryRun,
 		view:          ibStartupCfg.View,
-		fqdnRegEx:     ibStartupCfg.FQDNRexEx,
+		fqdnRegEx:     ibStartupCfg.FQDNRegEx,
 		createPTR:     ibStartupCfg.CreatePTR,
 		cacheDuration: ibStartupCfg.CacheDuration,
 	}
@@ -681,6 +688,45 @@ func (p *ProviderConfig) createRecords(created infobloxChangeMap) {
 					)
 					continue
 				}
+				expTypeA := ibclient.NewEmptyRecordA().ObjectType()
+				expTypeTXT := ibclient.NewRecordTXT(ibclient.RecordTXT{}).ObjectType()
+				expTypePTR := ibclient.NewEmptyRecordPTR().ObjectType()
+				expTypeCNAME := ibclient.NewEmptyRecordCNAME().ObjectType()
+				actType := recordSet.obj.ObjectType()
+				if actType == expTypeA {
+					recA := recordSet.obj.(*ibclient.RecordA)
+					if !isDomainValid(recA.Name) {
+						logrus.Errorf("cannot create an A-record with name '%s', which is invalid", recA.Name)
+						continue
+					}
+				} else if actType == expTypeTXT {
+					recTXT := recordSet.obj.(*ibclient.RecordTXT)
+					if !isDomainValid(recTXT.Name) {
+						logrus.Errorf("cannot create a TXT-record with name '%s', which is invalid", recTXT.Name)
+						continue
+					}
+				} else if actType == expTypePTR {
+					recPTR := recordSet.obj.(*ibclient.RecordPTR)
+					if recPTR.Name != "" && !isDomainValid(recPTR.Name) {
+						logrus.Errorf("cannot create a PTR-record with name '%s', which is invalid", recPTR.Name)
+						continue
+					}
+					if !isDomainValid(recPTR.PtrdName) {
+						logrus.Errorf("cannot create a PTR-record with ptrdname '%s', which is invalid", recPTR.PtrdName)
+						continue
+					}
+				} else if actType == expTypeCNAME {
+					recCNAME := recordSet.obj.(*ibclient.RecordCNAME)
+					if !isDomainValid(recCNAME.Name) {
+						logrus.Errorf("cannot create a CNAME-record with name '%s', which is invalid", recCNAME.Name)
+						continue
+					}
+					if !isDomainValid(recCNAME.Canonical) {
+						logrus.Errorf("cannot create a CNAME-record with canonical name '%s', which is invalid", recCNAME.Canonical)
+						continue
+					}
+				}
+
 				_, err = p.client.CreateObject(recordSet.obj)
 				if err != nil {
 					logrus.Errorf(
