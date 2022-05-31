@@ -521,17 +521,22 @@ func (p *ProviderConfig) mapChanges(zones []ibclient.ZoneAuth, changes *plan.Cha
 	return created, deleted
 }
 
+func isDirectZoneRecord(zoneFqdn, recFqdn string) bool {
+	parts := strings.SplitN(recFqdn, ".", 2)
+	if parts == nil || len(parts) != 2 {
+		return false
+	}
+
+	return parts[1] == zoneFqdn
+}
+
 func (p *ProviderConfig) findZone(zones []ibclient.ZoneAuth, name string) *ibclient.ZoneAuth {
 	var result *ibclient.ZoneAuth
 
 	// Go through every zone looking for the longest name (i.e. most specific) as a matching suffix
 	for idx := range zones {
 		zone := &zones[idx]
-		if strings.HasSuffix(name, "."+zone.Fqdn) {
-			if result == nil || len(zone.Fqdn) > len(result.Fqdn) {
-				result = zone
-			}
-		} else if strings.EqualFold(name, zone.Fqdn) {
+		if isDirectZoneRecord(zone.Fqdn, name) || strings.EqualFold(name, zone.Fqdn) {
 			if result == nil || len(zone.Fqdn) > len(result.Fqdn) {
 				result = zone
 			}

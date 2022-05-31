@@ -675,7 +675,6 @@ func TestInfobloxZones(t *testing.T) {
 	assert.Equal(t, providerCfg.findZone(zones, "lvl1-2.example.com").Fqdn, "example.com")
 	assert.Equal(t, providerCfg.findZone(zones, "lvl2-1.lvl1-1.example.com").Fqdn, "lvl2-1.lvl1-1.example.com")
 	assert.Equal(t, providerCfg.findZone(zones, "lvl2-2.lvl1-1.example.com").Fqdn, "lvl1-1.example.com")
-	assert.Equal(t, providerCfg.findZone(zones, "lvl2-2.lvl1-2.example.com").Fqdn, "example.com")
 	assert.Equal(t, providerCfg.findZone(zones, "1.2.3.0/24").Fqdn, "1.2.3.0/24")
 }
 
