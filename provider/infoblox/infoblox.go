@@ -128,6 +128,10 @@ func (mrb *ExtendedRequestBuilder) BuildRequest(t ibclient.RequestType, obj ibcl
 
 // NewInfobloxProvider creates a new Infoblox provider.
 func NewInfobloxProvider(ibStartupCfg StartupConfig) (*ProviderConfig, error) {
+	if strings.Trim(ibStartupCfg.View, " \a\b\t\n\r\f\v") == "" {
+		return nil, fmt.Errorf("non-empty DNS view's name is required")
+	}
+
 	hostCfg := ibclient.HostConfig{
 		Host:    ibStartupCfg.Host,
 		Port:    strconv.Itoa(ibStartupCfg.Port),
