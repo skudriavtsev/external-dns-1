@@ -453,17 +453,20 @@ func (p *ProviderConfig) ApplyChanges(ctx context.Context, changes *plan.Changes
 
 func (p *ProviderConfig) zones() ([]ibclient.ZoneAuth, error) {
 	var res, result []ibclient.ZoneAuth
-	obj := ibclient.NewZoneAuth(
-		ibclient.ZoneAuth{
-			View: p.view,
-		},
-	)
-	err := p.client.GetObject(obj, "", nil, &res)
+	obj := ibclient.NewZoneAuth(ibclient.ZoneAuth{})
+	qp := ibclient.NewQueryParams(
+		false, map[string]string{"view": p.view})
+	err := p.client.GetObject(obj, "", qp, &res)
 	if err != nil && !isNotFoundError(err) {
 		return nil, err
 	}
 
 	for _, zone := range res {
+		fqdnRE := regexp.MustCompile(p.fqdnRegEx)
+		if !fqdnRE.MatchString(zone.Fqdn) {
+			continue
+		}
+
 		if !p.domainFilter.Match(zone.Fqdn) {
 			continue
 		}
@@ -575,8 +578,14 @@ func (p *ProviderConfig) recordSet(ep *endpoint.Endpoint, getObject bool, target
 		obj.Name = ep.DNSName
 		obj.Ipv4Addr = ep.Targets[targetIndex]
 		obj.View = p.view
+		sf := map[string]string{
+			"view":     obj.View,
+			"name":     obj.Name,
+			"ipv4addr": obj.Ipv4Addr,
+		}
 		if getObject {
-			err = p.client.GetObject(obj, "", nil, &res)
+			err = p.client.GetObject(
+				obj, "", ibclient.NewQueryParams(false, sf), &res)
 			if err != nil && !isNotFoundError(err) {
 				return
 			}
@@ -591,19 +600,22 @@ func (p *ProviderConfig) recordSet(ep *endpoint.Endpoint, getObject bool, target
 		obj.PtrdName = ep.DNSName
 		obj.Ipv4Addr = ep.Targets[targetIndex]
 		obj.View = p.view
+		sf := map[string]string{
+			"view":     obj.View,
+			"ptrdname": obj.PtrdName,
+			"ipv4addr": obj.Ipv4Addr,
+		}
 		if getObject {
 			var staticPtrs, dynamicPtrs []ibclient.RecordPTR
-			qp := ibclient.NewQueryParams(false, map[string]string{
-				"creator": "STATIC",
-			})
-			err = p.client.GetObject(obj, "", qp, &staticPtrs)
+			sf["creator"] = "STATIC"
+			err = p.client.GetObject(
+				obj, "", ibclient.NewQueryParams(false, sf), &staticPtrs)
 			if err != nil && !isNotFoundError(err) {
 				return
 			}
-			qp = ibclient.NewQueryParams(false, map[string]string{
-				"creator": "DYNAMIC",
-			})
-			err = p.client.GetObject(obj, "", qp, &dynamicPtrs)
+			sf["creator"] = "DYNAMIC"
+			err = p.client.GetObject(
+				obj, "", ibclient.NewQueryParams(false, sf), &dynamicPtrs)
 			if err != nil && !isNotFoundError(err) {
 				return
 			}
@@ -619,8 +631,14 @@ func (p *ProviderConfig) recordSet(ep *endpoint.Endpoint, getObject bool, target
 		obj.Name = ep.DNSName
 		obj.Canonical = ep.Targets[0]
 		obj.View = p.view
+		sf := map[string]string{
+			"view":      obj.View,
+			"name":      obj.Name,
+			"canonical": obj.Canonical,
+		}
 		if getObject {
-			err = p.client.GetObject(obj, "", nil, &res)
+			err = p.client.GetObject(
+				obj, "", ibclient.NewQueryParams(false, sf), &res)
 			if err != nil && !isNotFoundError(err) {
 				return
 			}
@@ -643,8 +661,14 @@ func (p *ProviderConfig) recordSet(ep *endpoint.Endpoint, getObject bool, target
 				View: p.view,
 			},
 		)
+		sf := map[string]string{
+			"view": obj.View,
+			"name": obj.Name,
+			"text": obj.Text,
+		}
 		if getObject {
-			err = p.client.GetObject(obj, "", nil, &res)
+			err = p.client.GetObject(
+				obj, "", ibclient.NewQueryParams(false, sf), &res)
 			if err != nil && !isNotFoundError(err) {
 				return
 			}
@@ -749,7 +773,6 @@ func (p *ProviderConfig) createRecords(created infobloxChangeMap) {
 }
 
 func (p *ProviderConfig) deleteRecords(deleted infobloxChangeMap) {
-	// Delete records first
 	for zone, endpoints := range deleted {
 		for _, ep := range endpoints {
 			for targetIndex := range ep.Targets {
