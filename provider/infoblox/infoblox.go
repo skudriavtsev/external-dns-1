@@ -326,11 +326,9 @@ func (p *ProviderConfig) Records(ctx context.Context) (endpoints []*endpoint.End
 
 		var resT []ibclient.RecordTXT
 		objT := ibclient.NewRecordTXT(
-			ibclient.RecordTXT{
-				Zone: zone.Fqdn,
-				View: p.view,
-			},
-		)
+			p.view,
+			zone.Fqdn,
+			"", "", 0, false, "", nil)
 		err = p.client.GetObject(objT, "", nil, &resT)
 		if err != nil && !isNotFoundError(err) {
 			return nil, fmt.Errorf("could not fetch TXT records from zone '%s': %s", zone.Fqdn, err)
@@ -655,12 +653,8 @@ func (p *ProviderConfig) recordSet(ep *endpoint.Endpoint, getObject bool, target
 			ep.Targets = endpoint.Targets{target}
 		}
 		obj := ibclient.NewRecordTXT(
-			ibclient.RecordTXT{
-				Name: ep.DNSName,
-				Text: ep.Targets[0],
-				View: p.view,
-			},
-		)
+			p.view,
+			"", ep.DNSName, ep.Targets[0], 0, false, "", nil)
 		sf := map[string]string{
 			"view": obj.View,
 			"name": obj.Name,
@@ -718,7 +712,7 @@ func (p *ProviderConfig) createRecords(created infobloxChangeMap) {
 					continue
 				}
 				expTypeA := ibclient.NewEmptyRecordA().ObjectType()
-				expTypeTXT := ibclient.NewRecordTXT(ibclient.RecordTXT{}).ObjectType()
+				expTypeTXT := ibclient.NewEmptyRecordTXT().ObjectType()
 				expTypePTR := ibclient.NewEmptyRecordPTR().ObjectType()
 				expTypeCNAME := ibclient.NewEmptyRecordCNAME().ObjectType()
 				actType := recordSet.obj.ObjectType()
