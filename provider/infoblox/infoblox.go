@@ -214,11 +214,19 @@ func (p *ProviderConfig) Records(ctx context.Context) (endpoints []*endpoint.End
 
 	for _, zone := range zones {
 		logrus.Debugf("fetch records from zone '%s'", zone.Fqdn)
+
+		// Query params for the majority of records are the same
+		queryParams := ibclient.NewQueryParams(
+			false,
+			map[string]string{
+				"view": p.view,
+				"zone": zone.Fqdn,
+			},
+		)
+
 		var resA []ibclient.RecordA
 		objA := ibclient.NewEmptyRecordA()
-		objA.View = p.view
-		objA.Zone = zone.Fqdn
-		err = p.client.GetObject(objA, "", nil, &resA)
+		err = p.client.GetObject(objA, "", queryParams, &resA)
 		if err != nil && !isNotFoundError(err) {
 			return nil, fmt.Errorf("could not fetch A records from zone '%s': %s", zone.Fqdn, err)
 		}
@@ -262,9 +270,7 @@ func (p *ProviderConfig) Records(ctx context.Context) (endpoints []*endpoint.End
 		// Include Host records since they should be treated synonymously with A records
 		var resH []ibclient.HostRecord
 		objH := ibclient.NewEmptyHostRecord()
-		objH.View = p.view
-		objH.Zone = zone.Fqdn
-		err = p.client.GetObject(objH, "", nil, &resH)
+		err = p.client.GetObject(objH, "", queryParams, &resH)
 		if err != nil && !isNotFoundError(err) {
 			return nil, fmt.Errorf("could not fetch host records from zone '%s': %s", zone.Fqdn, err)
 		}
@@ -284,9 +290,7 @@ func (p *ProviderConfig) Records(ctx context.Context) (endpoints []*endpoint.End
 
 		var resC []ibclient.RecordCNAME
 		objC := ibclient.NewEmptyRecordCNAME()
-		objC.View = p.view
-		objC.Zone = zone.Fqdn
-		err = p.client.GetObject(objC, "", nil, &resC)
+		err = p.client.GetObject(objC, "", queryParams, &resC)
 		if err != nil && !isNotFoundError(err) {
 			return nil, fmt.Errorf("could not fetch CNAME records from zone '%s': %s", zone.Fqdn, err)
 		}
@@ -303,9 +307,9 @@ func (p *ProviderConfig) Records(ctx context.Context) (endpoints []*endpoint.End
 			if err == nil {
 				var resPtrStatic, resPtrDynamic []ibclient.RecordPTR
 				objP := ibclient.NewEmptyRecordPTR()
-				objP.Zone = arpaZone
-				objP.View = p.view
 				qp := ibclient.NewQueryParams(false, map[string]string{
+					"view":    p.view,
+					"zone":    arpaZone,
 					"creator": "STATIC",
 				})
 				err = p.client.GetObject(objP, "", qp, &resPtrStatic)
@@ -313,6 +317,8 @@ func (p *ProviderConfig) Records(ctx context.Context) (endpoints []*endpoint.End
 					return nil, fmt.Errorf("could not fetch PTR records from zone '%s': %s", zone.Fqdn, err)
 				}
 				qp = ibclient.NewQueryParams(false, map[string]string{
+					"view":    p.view,
+					"zone":    arpaZone,
 					"creator": "DYNAMIC",
 				})
 				err = p.client.GetObject(objP, "", qp, &resPtrDynamic)
@@ -329,11 +335,8 @@ func (p *ProviderConfig) Records(ctx context.Context) (endpoints []*endpoint.End
 		}
 
 		var resT []ibclient.RecordTXT
-		objT := ibclient.NewRecordTXT(
-			p.view,
-			zone.Fqdn,
-			"", "", 0, false, "", nil)
-		err = p.client.GetObject(objT, "", nil, &resT)
+		objT := ibclient.NewEmptyRecordTXT()
+		err = p.client.GetObject(objT, "", queryParams, &resT)
 		if err != nil && !isNotFoundError(err) {
 			return nil, fmt.Errorf("could not fetch TXT records from zone '%s': %s", zone.Fqdn, err)
 		}
