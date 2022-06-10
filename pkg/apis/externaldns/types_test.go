@@ -89,7 +89,7 @@ var (
 		InfobloxWapiUsername:        "",
 		InfobloxWapiPassword:        "",
 		InfobloxWapiVersion:         "2.3.1",
-		InfobloxView:                "",
+		InfobloxView:                "default",
 		InfobloxClientCert:          "",
 		InfobloxClientKey:           "",
 		InfobloxSSLVerify:           true,

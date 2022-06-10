@@ -253,7 +253,7 @@ var defaultConfig = &Config{
 	InfobloxSSLVerify:           true,
 	InfobloxClientCert:          "",
 	InfobloxClientKey:           "",
-	InfobloxView:                "",
+	InfobloxView:                "default",
 	InfobloxMaxResults:          0,
 	InfobloxFQDNRegEx:           "",
 	InfobloxCreatePTR:           false,
@@ -456,7 +456,7 @@ func (cfg *Config) ParseFlags(args []string) error {
 	app.Flag("infoblox-ssl-verify", "When using the Infoblox provider, specify whether to verify the SSL certificate (default: true, disable with --no-infoblox-ssl-verify)").Default(strconv.FormatBool(defaultConfig.InfobloxSSLVerify)).BoolVar(&cfg.InfobloxSSLVerify)
 	app.Flag("infoblox-client-cert", "Path to a certificate file (public part) to be used for client-based authentication when connecting to a NIOS server").Default(defaultConfig.InfobloxClientCert).StringVar(&cfg.InfobloxClientCert)
 	app.Flag("infoblox-client-key", "Path to a certificate key (private part) to be used for client-based authentication when connecting to a NIOS server").Default(defaultConfig.InfobloxClientKey).StringVar(&cfg.InfobloxClientKey)
-	app.Flag("infoblox-view", "DNS view (required)").StringVar(&cfg.InfobloxView)
+	app.Flag("infoblox-view", "DNS view for records to be managed").Default(defaultConfig.InfobloxView).StringVar(&cfg.InfobloxView)
 	app.Flag("infoblox-max-results", "Add _max_results as query parameter to the URL on all API requests. The default is 0 which means _max_results is not set and the default of the server is used.").Default(strconv.Itoa(defaultConfig.InfobloxMaxResults)).IntVar(&cfg.InfobloxMaxResults)
 	app.Flag("infoblox-fqdn-regex", "Apply this regular expression as a filter for obtaining zone_auth objects. This is disabled by default.").Default(defaultConfig.InfobloxFQDNRegEx).StringVar(&cfg.InfobloxFQDNRegEx)
 	app.Flag("infoblox-create-ptr", "When using the Infoblox provider, create a ptr entry in addition to an entry").Default(strconv.FormatBool(defaultConfig.InfobloxCreatePTR)).BoolVar(&cfg.InfobloxCreatePTR)
