@@ -19,6 +19,7 @@ package infoblox
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -66,6 +67,8 @@ type StartupConfig struct {
 	Password      string
 	Version       string
 	SSLVerify     bool
+	ClientCert    string
+	ClientKey     string
 	DryRun        bool
 	View          string
 	MaxResults    int
@@ -129,6 +132,11 @@ func (mrb *ExtendedRequestBuilder) BuildRequest(t ibclient.RequestType, obj ibcl
 
 // NewInfobloxProvider creates a new Infoblox provider.
 func NewInfobloxProvider(ibStartupCfg StartupConfig) (*ProviderConfig, error) {
+	var (
+		authMethodNamePass bool
+		authMethodCert     bool
+	)
+
 	if strings.TrimSpace(ibStartupCfg.View) == "" {
 		return nil, fmt.Errorf("non-empty DNS view's name is required")
 	}
@@ -140,8 +148,14 @@ func NewInfobloxProvider(ibStartupCfg StartupConfig) (*ProviderConfig, error) {
 	}
 
 	authCfg := ibclient.AuthConfig{
-		Username: ibStartupCfg.Username,
-		Password: ibStartupCfg.Password,
+		Username:   ibStartupCfg.Username,
+		Password:   ibStartupCfg.Password,
+		ClientCert: nil,
+		ClientKey:  nil,
+	}
+
+	if authCfg.Username != "" {
+		authMethodNamePass = true
 	}
 
 	httpPoolConnections := lookupEnvAtoi("EXTERNAL_DNS_INFOBLOX_HTTP_POOL_CONNECTIONS", 10)
@@ -168,6 +182,18 @@ func NewInfobloxProvider(ibStartupCfg StartupConfig) (*ProviderConfig, error) {
 		}
 	}
 
+	if ibStartupCfg.ClientCert != "" && ibStartupCfg.ClientKey != "" {
+		if authCfg.ClientCert, err = ioutil.ReadFile(ibStartupCfg.ClientCert); err != nil {
+			return nil, err
+		}
+
+		if authCfg.ClientKey, err = ioutil.ReadFile(ibStartupCfg.ClientKey); err != nil {
+			return nil, err
+		}
+
+		authMethodCert = true
+	}
+
 	requestor := &ibclient.WapiHttpRequestor{}
 
 	client, err := ibclient.NewConnector(hostCfg, authCfg, transportConfig, requestBuilder, requestor)
@@ -184,6 +210,14 @@ func NewInfobloxProvider(ibStartupCfg StartupConfig) (*ProviderConfig, error) {
 		fqdnRegEx:     regexp.MustCompile(ibStartupCfg.FQDNRegEx),
 		createPTR:     ibStartupCfg.CreatePTR,
 		cacheDuration: ibStartupCfg.CacheDuration,
+	}
+
+	if authMethodCert && authMethodNamePass {
+		logrus.Infof("Both client-certificate and password-based authentication methods are used for connecting to Infoblox NIOS server.")
+	} else if authMethodCert {
+		logrus.Infof("client-certificate authentication method is used for connecting to Infoblox NIOS server.")
+	} else {
+		logrus.Infof("password-based authentication method is used for connecting to Infoblox NIOS server.")
 	}
 
 	return providerCfg, nil

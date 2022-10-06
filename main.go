@@ -253,6 +253,8 @@ func main() {
 				Password:      cfg.InfobloxWapiPassword,
 				Version:       cfg.InfobloxWapiVersion,
 				SSLVerify:     cfg.InfobloxSSLVerify,
+				ClientCert:    cfg.InfobloxClientCert,
+				ClientKey:     cfg.InfobloxClientKey,
 				View:          cfg.InfobloxView,
 				MaxResults:    cfg.InfobloxMaxResults,
 				DryRun:        cfg.DryRun,
